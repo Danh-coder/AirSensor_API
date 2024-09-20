@@ -6,7 +6,7 @@ function insertChiSoDat(ChiSoDat) {
 function selectChiSoDat() {
     return `SELECT "ChiSoDat_ID", "ChiSoDat", "Datetime"
             FROM public."TheoDoiChiSoDat"
-            ORDER BY "Time" DESC
+            ORDER BY "Datetime" DESC
             LIMIT 100;`
 }
 
