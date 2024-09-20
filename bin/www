@@ -30,24 +30,33 @@ var server = http.createServer(app);
  * MQTT Client Setup
  */
 
+// Global variables
 const stats = [
   "IP_Address",
   "PM2.5",
+  "CO2",
   "CO",
   "SO2",
   "NO2",
   "Temperature",
   "Humidity",
+  "Others",
 ];
-let payloadGlobal = {
-  Temperature: "null",
-  Humidity: "null",
-  CO: "null",
-  "PM2.5": "null",
-  SO2: "null",
-  NO2: "null",
+
+// Define default value for any new field
+const defaultValue = 0;
+const otherDefaultValues = {
   IP_Address: "0.0.0.0",
+  Others: 100,
 };
+
+// Create payloadGlobal dynamically from stats
+let payloadGlobal = stats.reduce((payload, stat) => {
+  payload[stat] = otherDefaultValues.hasOwnProperty(stat)
+    ? otherDefaultValues[stat]
+    : defaultValue;
+  return payload;
+}, {});
 
 client.on("connect", () => {
   console.log("Connected to MQTT");
@@ -71,20 +80,75 @@ client.on("error", (err) => {
 // Global variables and timing logic
 let acceptInsert = false;
 
-// Toggle `acceptInsert` every minute
+// Create latestMessageArriveTime dynamically from stats with current time as the default value
+let latestMessageArriveTime = stats.reduce((timeObj, stat) => {
+  timeObj[stat] = new Date(); // Assign the current time
+  return timeObj;
+}, {});
+
+// Toggle `acceptInsert` every 5 minutes
 setInterval(() => {
   const date = new Date();
-  if (date.getMinutes() % 2 === 0) {
-    acceptInsert = true;
-  }
-}, 1000);
+  acceptInsert = (date.getMinutes() % 5 === 0 ? true : false)
+}, 20 * 1000);
+
+// Insert new records if there is stat cannot be measured
+setInterval(() => {
+  stats.forEach(async (stat) => {
+    const currentDate = new Date();
+    let statCannotMeasure = false;
+    if (
+      currentDate.getMinutes() - latestMessageArriveTime[stat].getMinutes() >
+      5
+    ) {
+      payloadGlobal[stat] = stat === "IP_Address" ? "0.0.0.0" : defaultValue;
+      statCannotMeasure = true;
+    }
+
+    if (statCannotMeasure) {
+      await db.query(queryStatement.createTable());
+      const result = await db.query(
+        queryStatement.insertChiSoDat(payloadGlobal)
+      );
+      if (result.rowCount === 1) {
+        console.log("Insert Success!");
+        acceptInsert = false;
+      } else {
+        console.log("Insert Failed!");
+      }
+    }
+  });
+}, 60 * 1000); // check every minute
 
 // Handle MQTT messages and database insertion
-client.on("message", async (topic, payload) => {
-  let data = payload.toString();
+// Proceed topic and payload whenever receiving new message
+function preProcess(topic, payload) {
+  // Retrieve necessary information
   const splitTopic = topic.split("/");
   const stat = splitTopic[splitTopic.length - 1];
+  let data = payload.toString().split(" ")[0]; // get rid of variable units
+  data =
+    stat !== "IP_Address" ? Math.round(parseFloat(data) * 100) / 100 : data; // parse to float and round to 2 decimals
+
+  // Bind data
+  if (stat === "CO2") data /= 10000; // Convert from ppm to %
   payloadGlobal[stat] = data;
+  payloadGlobal["Others"] =
+    Math.round(
+      (100 -
+        payloadGlobal["CO2"] -
+        payloadGlobal["NO2"] -
+        payloadGlobal["SO2"] -
+        payloadGlobal["CO"]) *
+        100
+    ) / 100;
+
+  return { stat };
+}
+
+client.on("message", async (topic, payload) => {
+  const { stat } = preProcess(topic, payload);
+  latestMessageArriveTime[stat] = new Date();
 
   try {
     // const allStatsEmpty =
@@ -118,16 +182,14 @@ const io = new SocketIOServer(server);
 io.on("connection", (socket) => {
   console.log("Socket connected");
   socket.emit("Value", JSON.stringify(payloadGlobal));
-  console.log(payloadGlobal);
-  
+  // console.log(payloadGlobal);
 
   client.on("message", (topic, payload) => {
-    const data = payload.toString();
-    const splitTopic = topic.split("/");
-    const stat = splitTopic[splitTopic.length - 1];
-    payloadGlobal[stat] = data;
+    preProcess(topic, payload);
 
-    socket.emit("Value", JSON.stringify(payloadGlobal));
+    if (acceptInsert) {
+      socket.emit("Value", JSON.stringify(payloadGlobal));
+    }
   });
 });
 
