@@ -1,0 +1,22 @@
+{
+  "name": "airsensor-express",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node ./bin/www"
+  },
+  "dependencies": {
+    "cookie-parser": "~1.4.4",
+    "debug": "~2.6.9",
+    "dotenv": "^16.4.5",
+    "engine.io": "^6.6.0",
+    "express": "^4.21.0",
+    "http-errors": "~1.6.3",
+    "jade": "^0.29.0",
+    "morgan": "~1.9.1",
+    "mqtt": "^5.10.1",
+    "pg": "^8.13.0",
+    "socket.io": "^4.7.5"
+  }
+}

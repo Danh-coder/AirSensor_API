@@ -1,0 +1,196 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+import app from "../app.js";
+import debug from "debug";
+import http from "http";
+// import { Server as Engine } from "engine.io";
+import { Server as SocketIOServer } from "socket.io";
+
+import client from "../ConnectMQTT/index.js";
+import db from "../ConnectDatabase/index.js";
+import queryStatement from "../ConnectDatabase/queryStatement.js";
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || "3000");
+app.set("port", port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * MQTT Client Setup
+ */
+
+const stats = [
+  "IP_Address",
+  "PM2.5",
+  "CO",
+  "SO2",
+  "NO2",
+  "Temperature",
+  "Humidity",
+];
+let payloadGlobal = {
+  Temperature: "null",
+  Humidity: "null",
+  CO: "null",
+  "PM2.5": "null",
+  SO2: "null",
+  NO2: "null",
+  IP_Address: "0.0.0.0",
+};
+
+client.on("connect", () => {
+  console.log("Connected to MQTT");
+
+  stats.forEach((stat) => {
+    const channel = "ETH_Datalogger/" + stat;
+    client.subscribe([channel], (err) => {
+      if (err) {
+        console.log("Subscription Error:", err);
+      } else {
+        console.log(`Subscribed to topic ${channel}`);
+      }
+    });
+  });
+});
+
+client.on("error", (err) => {
+  console.log("MQTT Connection Error:", err);
+});
+
+// Global variables and timing logic
+let acceptInsert = false;
+
+// Toggle `acceptInsert` every minute
+setInterval(() => {
+  const date = new Date();
+  if (date.getMinutes() % 2 === 0) {
+    acceptInsert = true;
+  }
+}, 1000);
+
+// Handle MQTT messages and database insertion
+client.on("message", async (topic, payload) => {
+  let data = payload.toString();
+  const splitTopic = topic.split("/");
+  const stat = splitTopic[splitTopic.length - 1];
+  payloadGlobal[stat] = data;
+
+  try {
+    // const allStatsEmpty =
+    //   stats.filter(
+    //     (stat) => payloadGlobal[stat] === payloadGlobal_Default_Obj[stat]
+    //   ).length === stats.length;
+    if (acceptInsert) {
+      await db.query(queryStatement.createTable());
+      const result = await db.query(
+        queryStatement.insertChiSoDat(payloadGlobal)
+      );
+      if (result.rowCount === 1) {
+        console.log("Insert Success!");
+        acceptInsert = false;
+      } else {
+        console.log("Insert Failed!");
+      }
+    }
+  } catch (error) {
+    console.log("Insert Failed:", error);
+  }
+});
+
+/**
+ * Initialize Socket.IO
+ */
+const io = new SocketIOServer(server);
+
+// Setup Socket.IO communication
+
+io.on("connection", (socket) => {
+  console.log("Socket connected");
+  socket.emit("Value", JSON.stringify(payloadGlobal));
+  console.log(payloadGlobal);
+  
+
+  client.on("message", (topic, payload) => {
+    const data = payload.toString();
+    const splitTopic = topic.split("/");
+    const stat = splitTopic[splitTopic.length - 1];
+    payloadGlobal[stat] = data;
+
+    socket.emit("Value", JSON.stringify(payloadGlobal));
+  });
+});
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on("error", onError);
+server.on("listening", onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== "listen") {
+    throw error;
+  }
+
+  var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case "EACCES":
+      console.error(bind + " requires elevated privileges");
+      process.exit(1);
+      break;
+    case "EADDRINUSE":
+      console.error(bind + " is already in use");
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
+  debug("Listening on " + bind);
+}
