@@ -94,34 +94,34 @@ setInterval(() => {
 }, 20 * 1000);
 
 // Insert new records if there is stat cannot be measured
-setInterval(() => {
-  stats.forEach(async (stat) => {
-    const currentDate = new Date();
-    let statCannotMeasure = false;
-    if (
-      currentDate.getMinutes() - latestMessageArriveTime[stat].getMinutes() >
-      5
-    ) {
-      payload[stat] = otherDefaultValues.hasOwnProperty(stat)
-        ? otherDefaultValues[stat]
-        : defaultValue;
-      statCannotMeasure = true;
-    }
+// setInterval(() => {
+//   stats.forEach(async (stat) => {
+//     const currentDate = new Date();
+//     let statCannotMeasure = false;
+//     if (
+//       currentDate.getMinutes() - latestMessageArriveTime[stat].getMinutes() >
+//       5
+//     ) {
+//       payload[stat] = otherDefaultValues.hasOwnProperty(stat)
+//         ? otherDefaultValues[stat]
+//         : defaultValue;
+//       statCannotMeasure = true;
+//     }
 
-    if (statCannotMeasure) {
-      await db.query(queryStatement.createTable());
-      const result = await db.query(
-        queryStatement.insertChiSoDat(payloadGlobal)
-      );
-      if (result.rowCount === 1) {
-        console.log("Insert Success!");
-        acceptInsert = false;
-      } else {
-        console.log("Insert Failed!");
-      }
-    }
-  });
-}, 60 * 1000); // check every minute
+//     if (statCannotMeasure) {
+//       await db.query(queryStatement.createTable());
+//       const result = await db.query(
+//         queryStatement.insertChiSoDat(payloadGlobal)
+//       );
+//       if (result.rowCount === 1) {
+//         console.log("Insert Success!");
+//         acceptInsert = false;
+//       } else {
+//         console.log("Insert Failed!");
+//       }
+//     }
+//   });
+// }, 60 * 1000); // check every minute
 
 // Handle MQTT messages and database insertion
 // Proceed topic and payload whenever receiving new message
