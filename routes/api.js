@@ -15,11 +15,7 @@ router.get('/getdata', async (req, res) => {
       return res.json(rs.rows); // Return the rows as JSON if data is found
     } else {
       // Return default data if no rows are found
-      return res.json([{
-        "ChiSoDat_ID": "1",
-        "ChiSoDat": "{\"PH\": 0, \"Kali\": 0, \"Temperature\": 0, \"Nitor\": 0, \"Photpho\": 0, \"Humidity\": 0, \"EC\": 0, \"Nhiệt độ\": 0, \"Độ ẩm\": 0, \"CO2\": 0, \"PM2.5\": 0 }",
-        "Time": "2024-01-01T00:00:00.804Z"
-      }]);
+      return res.json([]);
     }
 
     // res.json({})
