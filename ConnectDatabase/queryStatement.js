@@ -4,7 +4,7 @@ function insertChiSoDat(ChiSoDat) {
 }
 
 function selectChiSoDat() {
-    return `SELECT "ChiSoDat_ID", "ChiSoDat", "Time"
+    return `SELECT "ChiSoDat_ID", "ChiSoDat", "Datetime"
             FROM public."TheoDoiChiSoDat"
             ORDER BY "Time" DESC
             LIMIT 100;`
@@ -15,7 +15,7 @@ function createTable() {
 (
     "ChiSoDat_ID" SERIAL PRIMARY KEY, -- Auto-incrementing ID
     "ChiSoDat" jsonb,
-    "Time" TIME WITHOUT TIME ZONE DEFAULT CURRENT_TIME NOT NULL -- Default to current time
+    "Datetime" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL -- Default to current time
 );
 `
 }
