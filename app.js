@@ -1,4 +1,5 @@
 import createError from 'http-errors';
+import cors from 'cors'
 import express from 'express';
 import path from 'path';
 import cookieParser from 'cookie-parser';
@@ -14,6 +15,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 var app = express();
+
+// enabling CORS for any unknown origin(https://xyz.example.com)
+app.use(cors());
 
 // ------------------------------------- DEFAULT CODE BASE ------------------------------------------ //
 // view engine setup
