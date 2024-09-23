@@ -90,8 +90,8 @@ let latestMessageArriveTime = stats.reduce((timeObj, stat) => {
 // Toggle `acceptInsert` every 5 minutes
 setInterval(() => {
   const date = new Date();
-  acceptInsert = date.getMinutes() % 5 === 0 ? true : false;
-}, 20 * 1000);
+  acceptInsert = date.getMinutes() % 1 === 0 ? true : false;
+}, 10 * 1000);
 
 // Insert new records if there is stat cannot be measured
 // setInterval(() => {
